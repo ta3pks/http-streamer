@@ -42,6 +42,7 @@ impl Streamer
             if write!(&mut sock, "{}\r\n", data).is_err()
             {
                 clients.remove(i);
+                continue;
             }
             i += 1
         }
