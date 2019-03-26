@@ -19,7 +19,7 @@ impl Streamer
     pub fn new() -> Arc<Self> //{{{
     {
         Arc::new(Streamer {
-            clients: RwLock::new(Vec::new()),
+            clients: (RwLock::new(Vec::new())),
         })
     }
 
@@ -34,17 +34,17 @@ impl Streamer
     pub fn send<T: serde::Serialize>(&self, data: &T) //{{{
     {
         let mut clients = self.clients.write().unwrap();
-        let mut bad_indexes = Vec::new();
-        for (i, sock) in clients.iter().enumerate()
+        let mut i = 0;
+        while i < clients.len()
         {
-            if serde_json::to_writer(sock, data).is_err()
+            let mut sock = &mut clients[i];
+            let data = serde_json::to_string(data).unwrap();
+            if write!(&mut sock, "{}\r\n", data).is_err()
             {
-                bad_indexes.push(i);
+                clients.remove(i);
             }
+            i += 1
         }
-        bad_indexes.iter().for_each(|&i| {
-            clients.remove(i);
-        })
     }
 
     //}}}
