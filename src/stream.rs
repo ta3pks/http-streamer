@@ -39,7 +39,7 @@ impl Streamer
         {
             let mut sock = &mut clients[i];
             let data = serde_json::to_string(data).unwrap();
-            if write!(&mut sock, "{}\r\n", data).is_err()
+            if write!(&mut sock, "data: {}\r\n\n", data).is_err()
             {
                 clients.remove(i);
                 continue;
@@ -80,7 +80,7 @@ impl Streamer
                 let mut sock = sock;
                 let _ = sock.write(b"HTTP/1.1 200 OK\r\n");
                 let _ = sock.write(b"Connection: keep-alive\r\n");
-                let _ = sock.write(b"Content-Type: application/json\r\n");
+                let _ = sock.write(b"Content-Type: text/event-stream\r\n");
                 let _ = sock.write(b"x-content-type-options: nosniff\r\n");
                 if sock
                     .write(b"Access-Control-Allow-Origin: *\r\n\r\n")
