@@ -48,6 +48,15 @@ impl Streamer
     }
 
     //}}}
+    pub fn send_json_with_event<T: serde::Serialize>(&self, event: &str, data: &T) //{{{
+    {
+        self.send_with_event(
+            event,
+            serde_json::to_string(data).unwrap_or_default().as_str(),
+        )
+    }
+
+    //}}}
     pub fn send_with_event(&self, event: &str, data: &str) //{{{
     {
         let mut clients = self.clients.write().unwrap();
@@ -67,19 +76,7 @@ impl Streamer
     //}}}
     pub fn send_json<T: serde::Serialize>(&self, data: &T) //{{{
     {
-        let mut clients = self.clients.write().unwrap();
-        let mut i = 0;
-        while i < clients.len()
-        {
-            let mut sock = &mut clients[i];
-            let data = serde_json::to_string(data).unwrap();
-            if write!(&mut sock, "data: {}\r\n\n", data).is_err()
-            {
-                clients.remove(i);
-                continue;
-            }
-            i += 1
-        }
+        self.send(serde_json::to_string(data).unwrap_or_default().as_str())
     }
 
     //}}}
