@@ -6,6 +6,7 @@ edition = "2018"
 license = "MIT"
 repository="https://github.com/nikosEfthias/http-streamer"
 description="Http json streaming library"
+readme = "Readme.md"
 
 [dependencies]
 serde= "1.0"
