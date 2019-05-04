@@ -108,6 +108,13 @@ impl Streamer
                         continue;
                     }
                 };
+                if sock
+                    .set_write_timeout(Some(std::time::Duration::from_millis(50)))
+                    .is_err()
+                {
+                    eprintln!("error setting up socket");
+                    continue;
+                }
                 let mut sock = sock;
                 let _ = sock.write(b"HTTP/1.1 200 OK\r\n");
                 let _ = sock.write(b"Connection: keep-alive\r\n");
