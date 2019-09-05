@@ -1,14 +1,7 @@
 use std::{
     io::Write,
-    net::{
-        Shutdown,
-        TcpListener,
-        TcpStream,
-    },
-    sync::{
-        Arc,
-        RwLock,
-    },
+    net::{Shutdown, TcpListener, TcpStream},
+    sync::{Arc, RwLock},
 };
 pub struct Streamer
 {
@@ -24,27 +17,37 @@ impl Streamer
     }
 
     //}}}
+    pub fn connected_clients(&self) -> usize
+    {
+        self.clients
+            .read()
+            .map_err(|_| 0)
+            .map(|e| e.len())
+            .unwrap_or_default()
+    }
+
     pub fn new_client(&self, s: TcpStream) //{{{
     {
-        let mut clients = self.clients.write().unwrap();
-        clients.push(s);
+        let _ = self.clients.write().and_then(|mut c| Ok(c.push(s)));
     }
 
     //}}}
     pub fn send(&self, data: &str) //{{{
     {
-        let mut clients = self.clients.write().unwrap();
-        let mut i = 0;
-        while i < clients.len()
-        {
-            let mut sock = &mut clients[i];
-            if write!(&mut sock, "data: {}\r\n\n", data).is_err()
+        let _ = self.clients.write().and_then(|mut clients| {
+            let mut i = 0;
+            while i < clients.len()
             {
-                clients.remove(i);
-                continue;
+                let mut sock = &mut clients[i];
+                if write!(&mut sock, "data: {}\r\n\n", data).is_err()
+                {
+                    clients.remove(i);
+                    continue;
+                }
+                i += 1
             }
-            i += 1
-        }
+            Ok(())
+        });
     }
 
     //}}}
@@ -59,18 +62,20 @@ impl Streamer
     //}}}
     pub fn send_with_event(&self, event: &str, data: &str) //{{{
     {
-        let mut clients = self.clients.write().unwrap();
-        let mut i = 0;
-        while i < clients.len()
-        {
-            let mut sock = &mut clients[i];
-            if write!(&mut sock, "event: {}\r\ndata: {}\r\n\n", event, data).is_err()
+        let _ = self.clients.write().and_then(|mut clients| {
+            let mut i = 0;
+            while i < clients.len()
             {
-                clients.remove(i);
-                continue;
+                let mut sock = &mut clients[i];
+                if write!(&mut sock, "event: {}\r\ndata: {}\r\n\n", event, data).is_err()
+                {
+                    clients.remove(i);
+                    continue;
+                }
+                i += 1
             }
-            i += 1
-        }
+            Ok(())
+        });
     }
 
     //}}}
