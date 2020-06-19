@@ -1,14 +1,12 @@
 use std::{
-    io::Write,
+    io::{Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
     sync::{Arc, RwLock},
 };
-pub struct Streamer
-{
+pub struct Streamer {
     clients: RwLock<Vec<TcpStream>>,
 }
-impl Streamer
-{
+impl Streamer {
     pub fn new() -> Arc<Self> //{{{
     {
         Arc::new(Streamer {
@@ -17,8 +15,7 @@ impl Streamer
     }
 
     //}}}
-    pub fn connected_clients(&self) -> usize
-    {
+    pub fn connected_clients(&self) -> usize {
         self.clients
             .read()
             .map_err(|_| 0)
@@ -36,11 +33,9 @@ impl Streamer
     {
         let _ = self.clients.write().and_then(|mut clients| {
             let mut i = 0;
-            while i < clients.len()
-            {
+            while i < clients.len() {
                 let mut sock = &mut clients[i];
-                if write!(&mut sock, "data: {}\r\n\n", data).is_err()
-                {
+                if write!(&mut sock, "data: {}\r\n\n", data).is_err() {
                     clients.remove(i);
                     continue;
                 }
@@ -64,11 +59,9 @@ impl Streamer
     {
         let _ = self.clients.write().and_then(|mut clients| {
             let mut i = 0;
-            while i < clients.len()
-            {
+            while i < clients.len() {
                 let mut sock = &mut clients[i];
-                if write!(&mut sock, "event: {}\r\ndata: {}\r\n\n", event, data).is_err()
-                {
+                if write!(&mut sock, "event: {}\r\ndata: {}\r\n\n", event, data).is_err() {
                     clients.remove(i);
                     continue;
                 }
@@ -85,21 +78,21 @@ impl Streamer
     }
 
     //}}}
-    pub fn start(self: Arc<Self>, addr: &str) -> std::io::Result<()> //{{{
+    pub fn start<F: FnOnce(String) -> bool + Send + 'static + Clone>(
+        self: Arc<Self>,
+        addr: &str,
+        control_fn: F,
+    ) -> std::io::Result<()> //{{{
     {
+        let re: regex::Regex = regex::Regex::new(r"GET /[^ ]+").unwrap();
         let listener = TcpListener::bind(addr)?;
         std::thread::spawn(move || {
             //{{{
-            loop
-            {
-                let (sock, _addr) = match listener.accept()
-                {
-                    Ok((sock, _addr)) =>
-                    {
-                        match sock.set_read_timeout(Some(std::time::Duration::from_millis(200)))
-                        {
-                            Err(e) =>
-                            {
+            loop {
+                let (sock, _addr) = match listener.accept() {
+                    Ok((sock, _addr)) => {
+                        match sock.set_read_timeout(Some(std::time::Duration::from_millis(200))) {
+                            Err(e) => {
                                 eprintln!("error setting timeout{}", e);
                                 let _ = sock.shutdown(Shutdown::Both);
                                 continue;
@@ -107,8 +100,7 @@ impl Streamer
                             Ok(_) => (sock, _addr),
                         }
                     }
-                    Err(e) =>
-                    {
+                    Err(e) => {
                         eprintln!("error accepting the client to streaming endpoint {}", e);
                         continue;
                     }
@@ -120,7 +112,33 @@ impl Streamer
                     eprintln!("error setting up socket");
                     continue;
                 }
+                if sock
+                    .set_read_timeout(Some(std::time::Duration::from_millis(50)))
+                    .is_err()
+                {
+                    eprintln!("error setting up socket");
+                    continue;
+                }
+                let mut buf = [0u8; 50];
                 let mut sock = sock;
+                if sock.read(&mut buf).is_err() {
+                    eprintln!("error setting up socket");
+                    continue;
+                }
+                let req = String::from_utf8_lossy(&buf);
+                let tkn = re.find(&req);
+                if tkn.is_none() {
+                    continue;
+                }
+                let tkn: Vec<&str> = tkn.unwrap().as_str().split("/").collect();
+                if tkn.len() != 2 {
+                    continue;
+                }
+                let tkn = tkn[1];
+                if !control_fn.clone()(tkn.to_owned()) {
+                    let _ = sock.write(b"invalid token\r\n");
+                    continue;
+                }
                 let _ = sock.write(b"HTTP/1.1 200 OK\r\n");
                 let _ = sock.write(b"Connection: keep-alive\r\n");
                 let _ = sock.write(b"Content-Type: text/event-stream\r\n");
