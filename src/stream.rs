@@ -119,7 +119,7 @@ impl Streamer {
                     eprintln!("error setting up socket");
                     continue;
                 }
-                let mut buf = [0u8; 50];
+                let mut buf = [0u8; 500];
                 let mut sock = sock;
                 if sock.read(&mut buf).is_err() {
                     eprintln!("error setting up socket");
