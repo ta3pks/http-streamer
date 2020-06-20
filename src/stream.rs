@@ -78,7 +78,7 @@ impl Streamer {
     }
 
     //}}}
-    pub fn start<F: FnOnce(String) -> bool + Send + 'static + Clone>(
+    pub fn start<F: FnOnce(&str) -> bool + Send + 'static + Clone>(
         self: Arc<Self>,
         addr: &str,
         control_fn: F,
@@ -130,12 +130,19 @@ impl Streamer {
                 if tkn.is_none() {
                     continue;
                 }
-                let tkn: Vec<&str> = tkn.unwrap().as_str().split("/").collect();
+                // let tkn: Vec<&str> =
+                let decoded = percent_encoding::percent_decode(tkn.unwrap().as_str().as_bytes())
+                    .decode_utf8();
+                if decoded.is_err() {
+                    continue;
+                }
+                let tkn = decoded.unwrap();
+                let tkn = tkn.split("/").collect::<Vec<&str>>();
                 if tkn.len() != 2 {
                     continue;
                 }
                 let tkn = tkn[1];
-                if !control_fn.clone()(tkn.to_owned()) {
+                if !control_fn.clone()(tkn) {
                     let _ = sock.write(b"invalid token\r\n");
                     continue;
                 }

@@ -1,6 +1,6 @@
 [package]
 name = "http-stream"
-version = "0.14.0"
+version = "0.14.1"
 authors = ["nikos <nikos@mugsoft.io>"]
 edition = "2018"
 license = "MIT"
@@ -12,3 +12,4 @@ readme = "Readme.md"
 serde= "1.0"
 serde_json="1.0"
 regex="1"
+percent-encoding="1"
